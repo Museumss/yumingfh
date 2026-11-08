@@ -7,7 +7,7 @@
 ## ✨ 核心特性
 
 ### 🔒 密码保护系统
-- **访问控制**：默认密码为 `taocrypt`
+- **访问控制**：默认密码为 `xqdjwz`
 - **会话管理**：使用 sessionStorage 保存验证状态
 - **安全验证**：防止未授权访问
 
@@ -30,10 +30,10 @@
 ## 🚀 使用方法
 
 ### 1. 访问网站
-进入防红链接生成器：[taocrypt.github.io/LinkPass](https://taocrypt.github.io/LinkPass)
+进入防红链接生成器：
 
 ### 2. 输入密码
-- 默认密码：`taocrypt`
+- 默认密码：`xqdjwz`
 - 支持回车键快速验证
 - 验证成功后自动保存登录状态
 
@@ -109,16 +109,3 @@ Github防红/
 ### v1.0.0
 - 🚀 基础防红链接生成功能
 - 📱 响应式设计支持
-
-## 🤝 贡献指南
-
-欢迎提交 Issue 和 Pull Request 来改进这个项目！
-
-## 📄 许可证
-
-本项目采用 MIT 许可证。
-
-## 🔗 相关链接
-
-- **作者博客**：[blog.taocrypt.us.kg](https://blog.taocrypt.us.kg/article/LinkPass)
-- **原项目地址**：[xin-tencent-fang-hong](https://github.com/CalmXin/xin-tencent-fang-hong)
