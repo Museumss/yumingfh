@@ -5,15 +5,19 @@
     <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0,viewport-fit=cover">
     <title>加载中，请稍等...</title>
     <style>
-        body {
+        html, body {
             margin: 0;
             padding: 0;
+            width: 100%;
+            height: 100%;
             font-family: Arial, sans-serif;
+            overflow: hidden;
         }
         #iframe-container {
             width: 100%;
             height: 100vh;
             border: none;
+            display: none;
         }
         #content-frame {
             width: 100%;
@@ -39,6 +43,7 @@
             color: #ff4444;
             text-align: center;
             padding: 20px;
+            box-sizing: border-box;
         }
         .error a {
             color: #0066cc;
@@ -55,7 +60,7 @@
     </style>
 </head>
 <body>
-    <div id="iframe-container" style="display: none;">
+    <div id="iframe-container">
         <iframe id="content-frame" frameborder="0" width="100%" height="100%"></iframe>
     </div>
 
@@ -80,70 +85,11 @@
         var url = document.location.toString();
         var urlParmStr = url.slice(url.indexOf('=') + 1);
 
-        // 设置默认URL
         if (urlParmStr == url) {
             urlParmStr = "https://www.yiove.com";
         }
 
         return urlParmStr;
-    }
-
-    // 尝试通过多种方式获取页面标题
-    function getPageTitle(url, callback) {
-        fetch(url, { mode: 'no-cors' })
-            .then(function () {
-                return null;
-            })
-            .catch(function () {
-                return null;
-            })
-            .finally(function () {
-                tryGetTitleFromIframe(url, callback);
-            });
-    }
-
-    // 通过iframe尝试获取标题
-    function tryGetTitleFromIframe(url, callback) {
-        var tempFrame = document.createElement('iframe');
-        tempFrame.style.display = 'none';
-        tempFrame.src = url;
-
-        var timeout = setTimeout(function () {
-            callback('未知页面');
-            if (document.body.contains(tempFrame)) {
-                document.body.removeChild(tempFrame);
-            }
-        }, 5000);
-
-        tempFrame.onload = function () {
-            clearTimeout(timeout);
-            try {
-                var title = tempFrame.contentDocument.title || '未知页面';
-                if (title && title !== '未知页面') {
-                    callback(title);
-                } else {
-                    callback(getTitleFromUrl(url));
-                }
-            } catch (e) {
-                console.log('跨域限制，无法获取标题:', e);
-                callback(getTitleFromUrl(url));
-            }
-
-            if (document.body.contains(tempFrame)) {
-                document.body.removeChild(tempFrame);
-            }
-        };
-
-        tempFrame.onerror = function () {
-            clearTimeout(timeout);
-            callback(getTitleFromUrl(url));
-
-            if (document.body.contains(tempFrame)) {
-                document.body.removeChild(tempFrame);
-            }
-        };
-
-        document.body.appendChild(tempFrame);
     }
 
     // 从URL推断标题
@@ -165,11 +111,48 @@
                     return hostname + ' - ' + pathParts[pathParts.length - 1];
                 }
             }
-
             return hostname;
         } catch (e) {
             return '中转页面';
         }
+    }
+
+    // 尝试获取页面标题（仅用于更新浏览器标签标题，不显示任何黑条）
+    function getPageTitle(url, callback) {
+        var tempFrame = document.createElement('iframe');
+        tempFrame.style.display = 'none';
+        tempFrame.src = url;
+
+        var done = false;
+        function finish(title) {
+            if (done) return;
+            done = true;
+            clearTimeout(timeout);
+            if (document.body.contains(tempFrame)) {
+                document.body.removeChild(tempFrame);
+            }
+            callback(title || getTitleFromUrl(url));
+        }
+
+        var timeout = setTimeout(function () {
+            finish(getTitleFromUrl(url));
+        }, 5000);
+
+        tempFrame.onload = function () {
+            var title = '';
+            try {
+                title = tempFrame.contentDocument.title || '';
+            } catch (e) {
+                title = '';
+            }
+            finish(title && title !== '未知页面' ? title : getTitleFromUrl(url));
+        };
+
+        tempFrame.onerror = function () {
+            finish(getTitleFromUrl(url));
+        };
+
+        document.body.appendChild(tempFrame);
     }
 
     // 主函数
@@ -180,8 +163,6 @@
         if (isInWeChatOrQQ()) {
             console.log("检测到在QQ/微信中打开，使用iframe内嵌显示");
 
-            document.title = '中转页面';
-
             document.getElementById('loading').style.display = 'none';
             document.getElementById('iframe-container').style.display = 'block';
             document.getElementById('content-frame').src = targetUrl;
@@ -189,8 +170,7 @@
             startUrlTracking();
 
             getPageTitle(targetUrl, function (title) {
-                console.log("获取到页面标题:", title);
-                document.title = title;
+                if (title) document.title = title;
             });
 
         } else {
@@ -204,7 +184,6 @@
     var urlTrackingInterval = null;
     var lastKnownUrl = '';
 
-    // 启动URL跟踪
     function startUrlTracking() {
         currentUrl = getTargetUrl();
         lastKnownUrl = currentUrl;
@@ -214,23 +193,6 @@
             tryTrackCurrentUrl();
         });
 
-        iframe.addEventListener('beforeunload', function () {
-            console.log('iframe页面即将离开');
-        });
-
-        iframe.addEventListener('unload', function () {
-            console.log('iframe页面已离开');
-        });
-
-        try {
-            iframe.addEventListener('popstate', function () {
-                console.log('iframe历史记录变化');
-                setTimeout(tryTrackCurrentUrl, 100);
-            });
-        } catch (e) {
-            console.log('无法监听iframe的popstate事件:', e);
-        }
-
         urlTrackingInterval = setInterval(function () {
             tryTrackCurrentUrl();
         }, 3000);
@@ -238,7 +200,6 @@
         observeIframeSrcChanges();
     }
 
-    // 尝试获取当前URL
     function tryTrackCurrentUrl() {
         try {
             var iframe = document.getElementById('content-frame');
@@ -258,7 +219,6 @@
         tryInjectUrlTrackingScript();
     }
 
-    // 尝试通过postMessage获取URL
     function tryPostMessageToIframe() {
         try {
             var iframe = document.getElementById('content-frame');
@@ -268,12 +228,9 @@
                     requestId: Date.now()
                 }, '*');
             }
-        } catch (e) {
-            console.log('postMessage失败:', e);
-        }
+        } catch (e) {}
     }
 
-    // 尝试从iframe的src获取URL
     function tryGetUrlFromIframeSrc() {
         var iframe = document.getElementById('content-frame');
         if (iframe && iframe.src && iframe.src !== lastKnownUrl) {
@@ -284,7 +241,6 @@
         }
     }
 
-    // 尝试注入URL跟踪脚本
     function tryInjectUrlTrackingScript() {
         try {
             var iframe = document.getElementById('content-frame');
@@ -334,29 +290,21 @@
                 `;
 
                 iframe.contentDocument.head.appendChild(script);
-                console.log('URL跟踪脚本注入成功');
             }
-        } catch (e) {
-            console.log('无法注入URL跟踪脚本:', e);
-        }
+        } catch (e) {}
     }
 
-    // 更新当前URL
     function updateCurrentUrl(newUrl) {
         if (newUrl && newUrl !== currentUrl && newUrl !== 'about:blank') {
             lastKnownUrl = currentUrl;
             currentUrl = newUrl;
-            console.log("URL更新:", currentUrl);
 
             getPageTitle(currentUrl, function (title) {
-                if (title && title !== '未知页面') {
-                    document.title = title;
-                }
+                if (title) document.title = title;
             });
         }
     }
 
-    // 监听来自iframe的消息
     window.addEventListener('message', function (event) {
         if (event.data && event.data.type === 'currentUrlResponse') {
             var url = event.data.url;
@@ -366,15 +314,6 @@
         }
     });
 
-    // 停止URL跟踪
-    function stopUrlTracking() {
-        if (urlTrackingInterval) {
-            clearInterval(urlTrackingInterval);
-            urlTrackingInterval = null;
-        }
-    }
-
-    // 监听iframe的src属性变化
     function observeIframeSrcChanges() {
         var iframe = document.getElementById('content-frame');
         if (iframe && window.MutationObserver) {
@@ -383,7 +322,6 @@
                     if (mutation.type === 'attributes' && mutation.attributeName === 'src') {
                         var newSrc = iframe.src;
                         if (newSrc && newSrc !== lastKnownUrl && newSrc !== 'about:blank') {
-                            console.log('检测到iframe src变化:', newSrc);
                             updateCurrentUrl(newSrc);
                         }
                     }
@@ -397,12 +335,10 @@
         }
     }
 
-    // 处理在浏览器中打开的链接
     document.getElementById('open-browser').addEventListener('click', function (e) {
         e.preventDefault();
 
         var targetUrl = currentUrl || getTargetUrl();
-        console.log("在浏览器中打开当前页面:", targetUrl);
 
         var newWindow = window.open(targetUrl, '_blank');
         if (!newWindow) {
@@ -419,7 +355,6 @@
         }
     });
 
-    // 页面加载完成后执行
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
